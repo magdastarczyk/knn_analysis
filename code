@@ -1,0 +1,78 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+#load dataset
+data = pd.read_csv("filepath/parkinsons.csv")
+data.info()
+
+#preprocess data
+data.drop(['name'], axis=1, inplace=True)
+data['status'] = data.status.astype(bool)
+
+
+#the count of each status category
+data['status'].value_counts()
+
+#correlation matrix
+data.corr(numeric_only=True)['status'].abs().sort_values(ascending=False)
+plt.figure(figsize=(12, 10))
+sns.heatmap(data.corr(), annot=True)
+plt.title("correlations", size=20)
+plt.show()
+
+X = data.drop('status', axis=1)
+y = data['status']
+
+#standardize
+scaler = StandardScaler()
+scaler.fit(X)
+scaler_feature = scaler.transform(X)
+df_feature = pd.DataFrame(scaler_feature, columns=X.columns)
+
+#training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(df_feature, y, test_size=0.33, random_state=42)
+
+#best k
+err_rate = []
+for i in range(1, 40):
+    knn = KNeighborsClassifier(n_neighbors=i)
+    knn.fit(X_train, y_train)
+    predi = knn.predict(X_test)
+    err_rate.append(np.mean(predi != y_test))
+
+#plot error rate vs. k value
+plt.figure(figsize=(10, 6))
+plt.grid()
+plt.plot(range(1, 40), err_rate, marker='.', markerfacecolor='red', markersize=10)
+plt.xlabel('k-value')
+plt.ylabel('Error Rate')
+plt.title('Error Rate vs. k-value')
+plt.show()
+
+#train k-NN model
+knn = KNeighborsClassifier(n_neighbors=3)
+knn.fit(X_train, y_train)
+prediction = knn.predict(X_test)
+
+#report and confusion matrix
+print('Classification report')
+print(classification_report(y_test, prediction))
+print('\n')
+print('Confusion matrix')
+print(confusion_matrix(y_test, prediction))
+
+#plot the confusion matrix
+sns.heatmap(confusion_matrix(y_test, prediction), cmap='viridis', annot=True)
+plt.title('Confusion Matrix')
+plt.show()
+
+#the accuracy of the model
+accuracy = accuracy_score(y_test, prediction) * 100
+print(f'Model accuracy is: {round(accuracy, 2)} %')
